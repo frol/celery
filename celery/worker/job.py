@@ -23,7 +23,7 @@ from celery import exceptions
 from celery import signals
 from celery.app import app_or_default
 from celery.datastructures import ExceptionInfo
-from celery.exceptions import Ignore, TaskRevokedError
+from celery.exceptions import Ignore, IgnoreAndNoAck, TaskRevokedError
 from celery.five import items
 from celery.platforms import signals as _signals
 from celery.task.trace import (
@@ -373,21 +373,19 @@ class Request(object):
                     self.task.backend.mark_as_failure(self.id, exc)
                 elif isinstance(exc, exceptions.Terminated):
                     self._announce_revoked('terminated', True, str(exc), False)
-            # (acks_late) acknowledge after result stored.
-            if self.task.acks_late:
-                self.acknowledge()
+        # (acks_late) acknowledge after result stored.
+        if self.task.acks_late and not isinstance(exc_info.exception, IgnoreAndNoAck):
+            self.acknowledge()
         self._log_error(exc_info)
 
     def _log_error(self, einfo):
         einfo.exception = get_pickled_exception(einfo.exception)
-        exception, traceback, exc_info, internal, sargs, skwargs = (
-            safe_repr(einfo.exception),
-            safe_str(einfo.traceback),
-            einfo.exc_info,
-            einfo.internal,
-            safe_repr(self.args),
-            safe_repr(self.kwargs),
-        )
+        exception = safe_repr(einfo.exception)
+        traceback = safe_str(einfo.traceback)
+        exc_info = einfo.exc_info
+        internal = einfo.internal
+        sargs = safe_repr(self.args)
+        skwargs = safe_repr(self.kwargs)
         format = self.error_msg
         description = 'raised exception'
         severity = logging.ERROR
@@ -401,7 +399,6 @@ class Request(object):
                 description = 'ignored'
                 severity = logging.INFO
                 exc_info = None
-                self.acknowledge()
             else:
                 format = self.internal_error_msg
                 description = 'INTERNAL ERROR'
