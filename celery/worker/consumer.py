@@ -124,9 +124,9 @@ class Consumer(object):
         name = 'Consumer'
         default_steps = [
             'celery.worker.consumer:Connection',
-            'celery.worker.consumer:Mingle',
+            #'celery.worker.consumer:Mingle',
             'celery.worker.consumer:Events',
-            'celery.worker.consumer:Gossip',
+            #'celery.worker.consumer:Gossip',
             'celery.worker.consumer:Heart',
             'celery.worker.consumer:Control',
             'celery.worker.consumer:Tasks',
