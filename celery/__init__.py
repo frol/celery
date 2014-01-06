@@ -133,7 +133,7 @@ def maybe_patch_process_group():
 
     Seting process group per worker for future use killpg in terminate.
     """
-    from celery.platform import IS_WINDOWS
+    from celery.platforms import IS_WINDOWS
     if IS_WINDOWS:
         return
     os.setpgrp()
@@ -145,7 +145,7 @@ def maybe_patch_kill():
     maybe_patch_process_group add posibility to terminate worker with all its
     child processes.
     """
-    from celery.platform import IS_WINDOWS
+    from celery.platforms import IS_WINDOWS
     if IS_WINDOWS:
         return
     import billiard.pool
