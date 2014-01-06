@@ -71,6 +71,8 @@ def main(argv=None):
     # work with multiprocessing fork emulation.
     # (see multiprocessing.forking.get_preparation_data())
     try:
+        from celery import maybe_patch_kill
+        maybe_patch_kill()
         if __name__ != '__main__':  # pragma: no cover
             sys.modules['__main__'] = sys.modules[__name__]
         cmd = CeleryCommand()

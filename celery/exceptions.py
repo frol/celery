@@ -40,6 +40,14 @@ class Ignore(Exception):
     """A task can raise this to ignore doing state updates."""
 
 
+class IgnoreAndNoAck(Ignore):
+    """A task can raise this to ignore doing state updates even
+    acknowledgement.
+
+    Note: Useful only for late acknowledgement!
+    """
+
+
 class Reject(Exception):
     """A task can raise this if it wants to reject/requeue the message."""
 

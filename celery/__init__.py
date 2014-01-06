@@ -126,6 +126,35 @@ def maybe_patch_concurrency(argv=sys.argv,
         from celery import concurrency
         concurrency.get_implementation(pool)
 
+def maybe_patch_process_group():
+    """This patch gives capability to properly terminate worker with all
+    it's child processes. The patch is useful for Linux and may be OSx,
+    but not for Windows. Windows has this behaviour by design.
+
+    Seting process group per worker for future use killpg in terminate.
+    """
+    from celery.platform import IS_WINDOWS
+    if IS_WINDOWS:
+        return
+    os.setpgrp()
+
+
+def maybe_patch_kill():
+    """This patch replace kill with kill process group. The patch is useful
+    for Linux and may be OSx. The patch in conjunction with
+    maybe_patch_process_group add posibility to terminate worker with all its
+    child processes.
+    """
+    from celery.platform import IS_WINDOWS
+    if IS_WINDOWS:
+        return
+    import billiard.pool
+
+    def kill_killpg(pid, sign):
+        os.killpg(os.getpgid(pid), sign)
+    billiard.pool._kill = kill_killpg
+
+
 # Lazy loading
 from .five import recreate_module
 
@@ -147,5 +176,7 @@ old_module, new_module = recreate_module(  # pragma: no cover
     __homepage__=__homepage__, __docformat__=__docformat__,
     VERSION=VERSION, SERIES=SERIES, VERSION_BANNER=VERSION_BANNER,
     maybe_patch_concurrency=maybe_patch_concurrency,
+    maybe_patch_process_group=maybe_patch_process_group,
+    maybe_patch_kill=maybe_patch_kill,
     _find_option_with_arg=_find_option_with_arg,
 )

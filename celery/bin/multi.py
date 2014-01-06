@@ -146,6 +146,8 @@ multi_args_t = namedtuple(
 
 
 def main():
+    from celery import maybe_patch_kill
+    maybe_patch_kill()
     sys.exit(MultiTool().execute_from_commandline(sys.argv))
 
 

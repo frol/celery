@@ -94,6 +94,8 @@ class beat(Command):
 
 
 def main(app=None):
+    from celery import maybe_patch_kill
+    maybe_patch_kill()
     beat(app=app).execute_from_commandline()
 
 if __name__ == '__main__':      # pragma: no cover

@@ -23,9 +23,10 @@ from kombu.utils.encoding import safe_repr, safe_str
 from celery import signals
 from celery.app.trace import trace_task, trace_task_ret
 from celery.exceptions import (
-    Ignore, TaskRevokedError, InvalidTaskError,
-    SoftTimeLimitExceeded, TimeLimitExceeded,
-    WorkerLostError, Terminated, Retry, Reject,
+    Ignore, IgnoreAndNoAck TaskRevokedError,
+    InvalidTaskError, SoftTimeLimitExceeded,
+    TimeLimitExceeded, WorkerLostError, Terminated,
+    Retry, Reject,
 )
 from celery.five import items, monotonic, string, string_t
 from celery.platforms import signals as _signals
@@ -433,9 +434,10 @@ class Request(object):
                     self._announce_revoked(
                         'terminated', True, string(exc), False)
                     send_failed_event = False  # already sent revoked event
-            # (acks_late) acknowledge after result stored.
-            if self.task.acks_late:
-                self.acknowledge()
+        # (acks_late) acknowledge after result stored.
+        if self.task.acks_late \
+            and not isinstance(exc_info.exception, IgnoreAndNoAck):
+            self.acknowledge()
         self._log_error(exc_info, send_failed_event=send_failed_event)
 
     def _log_error(self, einfo, send_failed_event=True):
