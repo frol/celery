@@ -23,7 +23,7 @@ from kombu.utils.encoding import safe_repr, safe_str
 from celery import signals
 from celery.app.trace import trace_task, trace_task_ret
 from celery.exceptions import (
-    Ignore, IgnoreAndNoAck TaskRevokedError,
+    Ignore, IgnoreAndNoAck, TaskRevokedError,
     InvalidTaskError, SoftTimeLimitExceeded,
     TimeLimitExceeded, WorkerLostError, Terminated,
     Retry, Reject,
