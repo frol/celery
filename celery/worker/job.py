@@ -289,8 +289,8 @@ class Request(object):
                         'hostname': self.hostname, 'is_eager': False,
                         'delivery_info': self.delivery_info})
         retval = trace_task(self.task, self.id, self.args, kwargs, request,
-                            **{'hostname': self.hostname,
-                               'loader': self.app.loader})
+                            hostname=self.hostname, loader=self.app.loader,
+                            app=self.app)
         self.acknowledge()
         return retval
 
@@ -371,6 +371,9 @@ class Request(object):
 
         if self.store_errors:
             self.task.backend.mark_as_failure(self.id, exc, request=self)
+
+        if self.task.acks_late:
+            self.acknowledge()
 
     def on_success(self, ret_value, now=None, nowfun=monotonic):
         """Handler called if the task was successfully processed."""

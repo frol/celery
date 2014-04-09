@@ -521,7 +521,7 @@ General
 
 .. attribute:: Task.time_limit
 
-    The hard time limit for this task.  If not set then the workers default
+    The hard time limit, in seconds, for this task.  If not set then the workers default
     will be used.
 
 .. attribute:: Task.soft_time_limit
@@ -878,7 +878,7 @@ The task may raise :exc:`~@Ignore` to force the worker to ignore the
 task.  This means that no state will be recorded for the task, but the
 message is still acknowledged (removed from queue).
 
-This is can be used if you want to implement custom revoke-like
+This can be used if you want to implement custom revoke-like
 functionality, or manually store the result of a task.
 
 Example keeping revoked tasks in a Redis set:
@@ -902,7 +902,7 @@ Example that stores results manually:
     @app.task(bind=True)
     def get_tweets(self, user):
         timeline = twitter.get_timeline(user)
-        self.update_state(sate=states.SUCCESS, meta=timeline)
+        self.update_state(state=states.SUCCESS, meta=timeline)
         raise Ignore()
 
 .. _task-semipred-reject:
@@ -955,13 +955,12 @@ Example requeuing the message:
 
 .. code-block:: python
 
-    import errno
     from celery.exceptions import Reject
 
     @app.task(bind=True, acks_late=True)
     def requeues(self):
         if not self.request.delivery_info['redelivered']:
-            raise Requeue('no reason', requeue=True)
+            raise Reject('no reason', requeue=True)
         print('received two times')
 
 Consult your broker documentation for more details about the ``basic_reject``

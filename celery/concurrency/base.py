@@ -16,8 +16,10 @@ from billiard.einfo import ExceptionInfo
 from billiard.exceptions import WorkerLostError
 from kombu.utils.encoding import safe_repr
 
+from celery.exceptions import WorkerShutdown, WorkerTerminate
 from celery.five import monotonic, reraise
 from celery.utils import timer2
+from celery.utils.text import truncate
 from celery.utils.log import get_logger
 
 __all__ = ['BasePool', 'apply_target']
@@ -35,6 +37,8 @@ def apply_target(target, args=(), kwargs={}, callback=None,
     except propagate:
         raise
     except Exception:
+        raise
+    except (WorkerShutdown, WorkerTerminate):
         raise
     except BaseException as exc:
         try:
@@ -107,7 +111,7 @@ class BasePool(object):
     def maintain_pool(self, *args, **kwargs):
         pass
 
-    def terminate_job(self, pid):
+    def terminate_job(self, pid, signal=None):
         raise NotImplementedError(
             '{0} does not implement kill_job'.format(type(self)))
 
@@ -143,7 +147,8 @@ class BasePool(object):
         """
         if self._does_debug:
             logger.debug('TaskPool: Apply %s (args:%s kwargs:%s)',
-                         target, safe_repr(args), safe_repr(kwargs))
+                         target, truncate(safe_repr(args), 1024),
+                         truncate(safe_repr(kwargs), 1024))
 
         return self.on_apply(target, args, kwargs,
                              waitforslot=self.putlocks,

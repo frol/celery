@@ -104,7 +104,7 @@ If you're looking for versions prior to 3.0.x you should go to :ref:`history`.
 
 3.0.22
 ======
-:release-date: 2013-08-16 16:30 P.M BST
+:release-date: 2013-08-16 04:30 P.M BST
 :release-by: Ask Solem
 
 - Now depends on :ref:`Kombu 2.5.13 <kombu:version-2.5.13>`.
@@ -129,7 +129,7 @@ If you're looking for versions prior to 3.0.x you should go to :ref:`history`.
 
 3.0.21
 ======
-:release-date: 2013-07-05 16:30 P.M BST
+:release-date: 2013-07-05 04:30 P.M BST
 :release-by: Ask Solem
 
 - Now depends on :mod:`billiard` 2.7.3.31.
@@ -147,7 +147,7 @@ If you're looking for versions prior to 3.0.x you should go to :ref:`history`.
 
 3.0.20
 ======
-:release-date: 2013-06-28 16:00 P.M BST
+:release-date: 2013-06-28 04:00 P.M BST
 :release-by: Ask Solem
 
 - Contains workaround for deadlock problems.
@@ -558,7 +558,7 @@ If you're looking for versions prior to 3.0.x you should go to :ref:`history`.
 
     execv was only enabled when transports other than amqp/redis was used,
     and it's there to prevent deadlocks caused by mutexes not being released
-    before the process forks.  Sadly it also changes the environment
+    before the process forks.  Unfortunately it also changes the environment
     introducing many corner case bugs that is hard to fix without adding
     horrible hacks.  Deadlock issues are reported far less often than the
     bugs that execv are causing, so we now disable it by default.

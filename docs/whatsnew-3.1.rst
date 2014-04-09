@@ -270,7 +270,7 @@ Caveats
 Django supported out of the box
 -------------------------------
 
-Celery 3.0 introduced a shiny new API, but sadly did not
+Celery 3.0 introduced a shiny new API, but unfortunately did not
 have a solution for Django users.
 
 The situation changes with this version as Django is now supported
@@ -536,7 +536,7 @@ the task is always the process to retrieve the result.
 
 It uses Kombu to send and retrieve results, and each client
 uses a unique queue for replies to be sent to.  This avoids
-the significant overhead of the original amqp backend which creates
+the significant overhead of the original amqp result backend which creates
 one queue per task.
 
 By default results sent using this backend will not persist, so they won't

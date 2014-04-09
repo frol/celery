@@ -26,7 +26,7 @@ from kombu.utils import cached_property, uuid
 from celery import platforms
 from celery import signals
 from celery._state import (
-    _task_stack, _tls, get_current_app, set_default_app,
+    _task_stack, get_current_app, _set_current_app, set_default_app,
     _register_app, get_current_worker_task,
 )
 from celery.exceptions import AlwaysEagerIgnored, ImproperlyConfigured
@@ -147,7 +147,7 @@ class Celery(object):
         _register_app(self)
 
     def set_current(self):
-        _tls.current_app = self
+        _set_current_app(self)
 
     def set_default(self):
         set_default_app(self)
@@ -235,7 +235,8 @@ class Celery(object):
             'run': fun if bind else staticmethod(fun),
             '_decorated': True,
             '__doc__': fun.__doc__,
-            '__module__': fun.__module__}, **options))()
+            '__module__': fun.__module__,
+            '__wrapped__': fun}, **options))()
         task = self._tasks[T.name]  # return global instance.
         return task
 
@@ -272,7 +273,8 @@ class Celery(object):
         if not module_name:
             if silent:
                 return False
-            raise ImproperlyConfigured(ERR_ENVVAR_NOT_SET.format(module_name))
+            raise ImproperlyConfigured(
+                ERR_ENVVAR_NOT_SET.format(variable_name))
         return self.config_from_object(module_name, silent=silent, force=force)
 
     def config_from_cmdline(self, argv, namespace='celery'):

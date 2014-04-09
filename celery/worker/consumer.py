@@ -111,8 +111,16 @@ The full contents of the message body was:
 %s
 """
 
+MESSAGE_DECODE_ERROR = """\
+Can't decode message body: %r [type:%r encoding:%r headers:%s]
+
+body: %s
+"""
+
 MESSAGE_REPORT = """\
-body: {0} {{content_type:{1} content_encoding:{2} delivery_info:{3}}}\
+body: {0}
+{{content_type:{1} content_encoding:{2}
+  delivery_info:{3} headers={4}}}
 """
 
 MINGLE_GET_FIELDS = itemgetter('clock', 'revoked')
@@ -228,7 +236,7 @@ class Consumer(object):
     def _update_prefetch_count(self, index=0):
         """Update prefetch count after pool/shrink grow operations.
 
-        Index must be the change in number of processes as a postive
+        Index must be the change in number of processes as a positive
         (increasing) or negative (decreasing) number.
 
         .. note::
@@ -320,9 +328,10 @@ class Consumer(object):
         :param exc: The original exception instance.
 
         """
-        crit("Can't decode message body: %r (type:%r encoding:%r raw:%r')",
+        crit(MESSAGE_DECODE_ERROR,
              exc, message.content_type, message.content_encoding,
-             dump_body(message, message.body), exc_info=1)
+             safe_repr(message.headers), dump_body(message, message.body),
+             exc_info=1)
         message.ack()
 
     def on_close(self):
@@ -407,7 +416,8 @@ class Consumer(object):
         return MESSAGE_REPORT.format(dump_body(message, body),
                                      safe_repr(message.content_type),
                                      safe_repr(message.content_encoding),
-                                     safe_repr(message.delivery_info))
+                                     safe_repr(message.delivery_info),
+                                     safe_repr(message.headers))
 
     def on_unknown_message(self, body, message):
         warn(UNKNOWN_FORMAT, self._message_report(body, message))
@@ -648,6 +658,7 @@ class Gossip(bootsteps.ConsumerStep):
             self.state = c.app.events.State(
                 on_node_join=self.on_node_join,
                 on_node_leave=self.on_node_leave,
+                max_tasks_in_memory=1,
             )
             if c.hub:
                 c._mutex = DummyLock()
@@ -761,6 +772,10 @@ class Gossip(bootsteps.ConsumerStep):
 
     def on_message(self, prepare, message):
         _type = message.delivery_info['routing_key']
+
+        # For redis when `fanout_patterns=False` (See Issue #1882)
+        if _type.split('.', 1)[0] == 'task':
+            return
         try:
             handler = self.event_handlers[_type]
         except KeyError:
