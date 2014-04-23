@@ -57,8 +57,9 @@ def unpickle_backend(cls, args, kwargs):
 
 class _nulldict(dict):
 
-    def __setitem__(self, k, v):
+    def ignore(self, *a, **kw):
         pass
+    __setitem__ = update = setdefault = ignore
 
 
 class BaseBackend(object):
@@ -166,8 +167,10 @@ class BaseBackend(object):
         """Convert serialized exception to Python exception."""
         if self.serializer in EXCEPTION_ABLE_CODECS:
             return get_pickled_exception(exc)
-        return create_exception_cls(
-            from_utf8(exc['exc_type']), __name__)(exc['exc_message'])
+        elif not isinstance(exc, BaseException):
+            return create_exception_cls(
+                from_utf8(exc['exc_type']), __name__)(exc['exc_message'])
+        return exc
 
     def prepare_value(self, result):
         """Prepare value for storage."""

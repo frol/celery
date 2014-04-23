@@ -27,7 +27,8 @@ from celery import platforms
 from celery import signals
 from celery._state import (
     _task_stack, get_current_app, _set_current_app, set_default_app,
-    _register_app, get_current_worker_task,
+    _register_app, get_current_worker_task, connect_on_app_finalize,
+    _announce_app_finalized,
 )
 from celery.exceptions import AlwaysEagerIgnored, ImproperlyConfigured
 from celery.five import items, values
@@ -38,12 +39,14 @@ from celery.utils.imports import instantiate, symbol_by_name
 from celery.utils.objects import mro_lookup
 
 from .annotations import prepare as prepare_annotations
-from .builtins import shared_task, load_shared_tasks
 from .defaults import DEFAULTS, find_deprecated_settings
 from .registry import TaskRegistry
 from .utils import (
     AppPickler, Settings, bugreport, _unpickle_app, _unpickle_app_v2, appstr,
 )
+
+# Load all builtin tasks
+from . import builtins  # noqa
 
 __all__ = ['Celery']
 
@@ -58,6 +61,8 @@ and as such the configuration could not be loaded.
 Please set this variable and make it point to
 a configuration module."""
 
+_after_fork_registered = False
+
 
 def app_has_custom(app, attr):
     return mro_lookup(app.__class__, attr, stop=(Celery, object),
@@ -68,6 +73,29 @@ def _unpickle_appattr(reverse_name, args):
     """Given an attribute name and a list of args, gets
     the attribute from the current app and calls it."""
     return get_current_app()._rgetattr(reverse_name)(*args)
+
+
+def _global_after_fork():
+    # Previously every app would call:
+    #    `register_after_fork(app, app._after_fork)`
+    # but this created a leak as `register_after_fork` stores concrete object
+    # references and once registered an object cannot be removed without
+    # touching and iterating over the private afterfork registry list.
+    #
+    # See Issue #1949
+    from celery import _state
+    from multiprocessing.util import info
+    for app in _state.apps:
+        try:
+            app._after_fork()
+        except Exception as exc:
+            info('after forker raised exception: %r' % (exc, ), exc_info=1)
+
+
+def _ensure_after_fork():
+    global _after_fork_registered
+    _after_fork_registered = True
+    register_after_fork(_global_after_fork, _global_after_fork)
 
 
 class Celery(object):
@@ -183,8 +211,8 @@ class Celery(object):
             # a differnt task instance.  This makes sure it will always use
             # the task instance from the current app.
             # Really need a better solution for this :(
-            from . import shared_task as proxies_to_curapp
-            return proxies_to_curapp(*args, _force_evaluate=True, **opts)
+            from . import shared_task
+            return shared_task(*args, _force_evaluate=True, **opts)
 
         def inner_create_task_cls(shared=True, filter=None, **opts):
             _filt = filter  # stupid 2to3
@@ -193,7 +221,7 @@ class Celery(object):
                 if shared:
                     cons = lambda app: app._task_from_fun(fun, **opts)
                     cons.__name__ = fun.__name__
-                    shared_task(cons)
+                    connect_on_app_finalize(cons)
                 if self.accept_magic_kwargs:  # compat mode
                     task = self._task_from_fun(fun, **opts)
                     if filter:
@@ -246,7 +274,7 @@ class Celery(object):
                 if auto and not self.autofinalize:
                     raise RuntimeError('Contract breach: app not finalized')
                 self.finalized = True
-                load_shared_tasks(self)
+                _announce_app_finalized(self)
 
                 pending = self._pending
                 while pending:
@@ -583,7 +611,7 @@ class Celery(object):
     @property
     def pool(self):
         if self._pool is None:
-            register_after_fork(self, self._after_fork)
+            _ensure_after_fork()
             limit = self.conf.BROKER_POOL_LIMIT
             self._pool = self.connection().Pool(limit=limit)
         return self._pool

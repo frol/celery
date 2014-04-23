@@ -246,7 +246,14 @@ class Suite(object):
     def bigtasksbigvalue(self):
         g = group(any_returning.s(BIG, sleep=0.3) for i in range(8))
         r = g()
-        self.join(r, timeout=10)
+        try:
+            self.join(r, timeout=10)
+        finally:
+            # very big values so remove results from backend
+            try:
+                r.forget()
+            except NotImplementedError:
+                pass
 
     def bigtasks(self, wait=None):
         self._revoketerm(wait, False, False, BIG)
