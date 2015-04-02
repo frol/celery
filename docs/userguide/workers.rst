@@ -23,7 +23,7 @@ You can start the worker in the foreground by executing the command:
 
 .. code-block:: bash
 
-    $ celery --app=app worker -l info
+    $ celery -A proj worker -l info
 
 For a full list of available command-line options see
 :mod:`~celery.bin.worker`, or simply do:
@@ -38,9 +38,9 @@ host name with the :option:`--hostname|-n` argument:
 
 .. code-block:: bash
 
-    $ celery worker --loglevel=INFO --concurrency=10 -n worker1.%h
-    $ celery worker --loglevel=INFO --concurrency=10 -n worker2.%h
-    $ celery worker --loglevel=INFO --concurrency=10 -n worker3.%h
+    $ celery -A proj worker --loglevel=INFO --concurrency=10 -n worker1.%h
+    $ celery -A proj worker --loglevel=INFO --concurrency=10 -n worker2.%h
+    $ celery -A proj worker --loglevel=INFO --concurrency=10 -n worker3.%h
 
 The hostname argument can expand the following variables:
 
@@ -54,6 +54,10 @@ these will expand to:
     - ``worker1.%h`` -> ``worker1.george.example.com``
     - ``worker1.%n`` -> ``worker1.george``
     - ``worker1.%d`` -> ``worker1.example.com``
+
+.. admonition:: Note for :program:`supervisord` users.
+
+   The ``%`` sign must be escaped by adding a second one: `%%h`.
 
 .. _worker-stopping:
 
@@ -290,12 +294,16 @@ Of course, using the higher-level interface to set rate limits is much
 more convenient, but there are commands that can only be requested
 using :meth:`~@control.broadcast`.
 
+Commands
+========
+
 .. control:: revoke
 
-Revoking tasks
-==============
-pool support: all
-broker support: *amqp, redis*
+``revoke``: Revoking tasks
+--------------------------
+:pool support: all
+:broker support: *amqp, redis*
+:command: :program:`celery -A proj control revoke <task_id>`
 
 All worker nodes keeps a memory of revoked task ids, either in-memory or
 persistent on disk (see :ref:`worker-persistent-revokes`).
@@ -556,7 +564,7 @@ by giving a comma separated list of queues to the :option:`-Q` option:
 
 .. code-block:: bash
 
-    $ celery worker -l info -Q foo,bar,baz
+    $ celery -A proj worker -l info -Q foo,bar,baz
 
 If the queue name is defined in :setting:`CELERY_QUEUES` it will use that
 configuration, but if it's not defined in the list of queues Celery will
@@ -580,7 +588,7 @@ named "``foo``" you can use the :program:`celery control` program:
 
 .. code-block:: bash
 
-    $ celery control add_consumer foo
+    $ celery -A proj control add_consumer foo
     -> worker1.local: OK
         started consuming from u'foo'
 
@@ -589,7 +597,7 @@ If you want to specify a specific worker you can use the
 
 .. code-block:: bash
 
-    $ celery control add_consumer foo -d worker1.local
+    $ celery -A proj control add_consumer foo -d worker1.local
 
 The same can be accomplished dynamically using the :meth:`@control.add_consumer` method::
 
@@ -631,14 +639,14 @@ you can use the :program:`celery control` program:
 
 .. code-block:: bash
 
-    $ celery control cancel_consumer foo
+    $ celery -A proj control cancel_consumer foo
 
 The :option:`--destination` argument can be used to specify a worker, or a
 list of workers, to act on the command:
 
 .. code-block:: bash
 
-    $ celery control cancel_consumer foo -d worker1.local
+    $ celery -A proj control cancel_consumer foo -d worker1.local
 
 
 You can also cancel consumers programmatically using the
@@ -659,7 +667,7 @@ the :control:`active_queues` control command:
 
 .. code-block:: bash
 
-    $ celery inspect active_queues
+    $ celery -A proj inspect active_queues
     [...]
 
 Like all other remote control commands this also supports the
@@ -668,7 +676,7 @@ reply to the request:
 
 .. code-block:: bash
 
-    $ celery inspect active_queues -d worker1.local
+    $ celery -A proj inspect active_queues -d worker1.local
     [...]
 
 
@@ -806,7 +814,7 @@ Inspecting workers
 uses remote control commands under the hood.
 
 You can also use the ``celery`` command to inspect workers,
-and it supports the same commands as the :class:`@Celery.control` interface.
+and it supports the same commands as the :class:`@control` interface.
 
 .. code-block:: python
 

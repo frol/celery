@@ -74,7 +74,7 @@ The :program:`celery` program can be used to start the worker:
 
 .. code-block:: bash
 
-    $ celery worker --app=proj -l info
+    $ celery -A proj worker -l info
 
 When the worker starts you should see a banner and some messages::
 
@@ -160,7 +160,7 @@ You can restart it too:
 
 .. code-block:: bash
 
-    $ celery multi restart w1 -A proj -l info
+    $ celery  multi restart w1 -A proj -l info
     celery multi v3.1.1 (Cipater)
     > Stopping nodes...
         > w1.halcyon.local: TERM -> 64024
@@ -201,7 +201,7 @@ you are encouraged to put these in a dedicated directory:
     $ mkdir -p /var/run/celery
     $ mkdir -p /var/log/celery
     $ celery multi start w1 -A proj -l info --pidfile=/var/run/celery/%n.pid \
-                                            --logfile=/var/log/celery/%n.pid
+                                            --logfile=/var/log/celery/%n%I.log
 
 With the multi command you can start multiple workers, and there is a powerful
 command-line syntax to specify arguments for different workers too,
@@ -317,7 +317,7 @@ exception, in fact ``result.get()`` will propagate any errors by default::
     File "/opt/devel/celery/celery/result.py", line 113, in get
         interval=interval)
     File "/opt/devel/celery/celery/backends/amqp.py", line 138, in wait_for
-        raise self.exception_to_python(meta['result'])
+        raise meta['result']
     TypeError: add() takes exactly 2 arguments (1 given)
 
 If you don't wish for the errors to propagate then you can disable that

@@ -234,15 +234,14 @@ class test_AMQPBackend(AppCase):
         with self.assertRaises(TimeoutError):
             b.wait_for(tid, timeout=0.1)
         b.store_result(tid, 42, states.SUCCESS)
-        self.assertEqual(b.wait_for(tid, timeout=1), 42)
+        self.assertEqual(b.wait_for(tid, timeout=1)['result'], 42)
         b.store_result(tid, 56, states.SUCCESS)
-        self.assertEqual(b.wait_for(tid, timeout=1), 42,
+        self.assertEqual(b.wait_for(tid, timeout=1)['result'], 42,
                          'result is cached')
-        self.assertEqual(b.wait_for(tid, timeout=1, cache=False), 56)
+        self.assertEqual(b.wait_for(tid, timeout=1, cache=False)['result'], 56)
         b.store_result(tid, KeyError('foo'), states.FAILURE)
-        with self.assertRaises(KeyError):
-            b.wait_for(tid, timeout=1, cache=False)
-        self.assertTrue(b.wait_for(tid, timeout=1, propagate=False))
+        res = b.wait_for(tid, timeout=1, cache=False)
+        self.assertEqual(res['status'], states.FAILURE)
         b.store_result(tid, KeyError('foo'), states.PENDING)
         with self.assertRaises(TimeoutError):
             b.wait_for(tid, timeout=0.01, cache=False)
@@ -271,12 +270,16 @@ class test_AMQPBackend(AppCase):
             tids.append(tid)
 
         res = list(b.get_many(tids, timeout=1))
-        expected_results = [(tid, {'status': states.SUCCESS,
-                                   'result': i,
-                                   'traceback': None,
-                                   'task_id': tid,
-                                   'children': None})
-                            for i, tid in enumerate(tids)]
+        expected_results = [
+            (task_id, {
+                'status': states.SUCCESS,
+                'result': i,
+                'traceback': None,
+                'task_id': task_id,
+                'children': None,
+            })
+            for i, task_id in enumerate(tids)
+        ]
         self.assertEqual(sorted(res), sorted(expected_results))
         self.assertDictEqual(b._cache[res[0][0]], res[0][1])
         cached_res = list(b.get_many(tids, timeout=1))

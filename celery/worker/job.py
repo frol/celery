@@ -297,7 +297,7 @@ class Request(object):
     def maybe_expire(self):
         """If expired, mark the task as revoked."""
         if self.expires:
-            now = datetime.now(tz_or_local(self.tzlocal) if self.utc else None)
+            now = datetime.now(self.expires.tzinfo)
             if now > self.expires:
                 revoked_tasks.add(self.id)
                 return True
@@ -463,12 +463,8 @@ class Request(object):
             do_send_mail, severity, description = (
                 True, logging.ERROR, 'raised unexpected',
             )
-        format = self.error_msg
-        if send_failed_event:
-            self.send_event(
-                'task-failed', exception=exception, traceback=traceback,
-            )
 
+        format = self.error_msg
         if internal:
             if isinstance(einfo.exception, MemoryError):
                 raise MemoryError('Process got: %s' % (einfo.exception, ))
@@ -476,18 +472,24 @@ class Request(object):
                 format = self.rejected_msg
                 description = 'rejected'
                 severity = logging.WARN
-                exc_info = einfo
+                send_failed_event = False
                 self.reject(requeue=einfo.exception.requeue)
             elif isinstance(einfo.exception, Ignore):
                 format = self.ignored_msg
                 description = 'ignored'
                 severity = logging.INFO
                 exc_info = None
+                send_failed_event = False
                 self.acknowledge()
             else:
                 format = self.internal_error_msg
                 description = 'INTERNAL ERROR'
                 severity = logging.CRITICAL
+
+        if send_failed_event:
+            self.send_event(
+                'task-failed', exception=exception, traceback=traceback,
+            )
 
         context = {
             'hostname': self.hostname,
@@ -542,9 +544,11 @@ class Request(object):
                 'worker_pid': self.worker_pid}
 
     def __str__(self):
-        return '{0.name}[{0.id}]{1}{2}'.format(self,
-               ' eta:[{0}]'.format(self.eta) if self.eta else '',
-               ' expires:[{0}]'.format(self.expires) if self.expires else '')
+        return '{0.name}[{0.id}]{1}{2}'.format(
+            self,
+            ' eta:[{0}]'.format(self.eta) if self.eta else '',
+            ' expires:[{0}]'.format(self.expires) if self.expires else '',
+        )
     shortinfo = __str__
 
     def __repr__(self):

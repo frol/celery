@@ -714,13 +714,20 @@ Message Routing
 CELERY_QUEUES
 ~~~~~~~~~~~~~
 
-The mapping of queues the worker consumes from.  This is a dictionary
-of queue name/options.  See :ref:`guide-routing` for more information.
+Most users will not want to specify this setting and should rather use
+the :ref:`automatic routing facilities <routing-automatic>`.
+
+If you really want to configure advanced routing, this setting should
+be a list of :class:`kombu.Queue` objects the worker will consume from.
+
+Note that workers can be overriden this setting via the `-Q` option,
+or individual queues from this list (by name) can be excluded using
+the `-X` option.
+
+Also see :ref:`routing-basics` for more information.
 
 The default is a queue/exchange/binding key of ``celery``, with
 exchange type ``direct``.
-
-You don't have to care about this unless you want custom routing facilities.
 
 .. setting:: CELERY_ROUTES
 
@@ -895,26 +902,6 @@ Example::
     BROKER_FAILOVER_STRATEGY=random_failover_strategy
 
 .. setting:: BROKER_TRANSPORT
-
-BROKER_FAILOVER_STRATEGY
-~~~~~~~~~~~~~~~~~~~~~~~~
-
-Default failover strategy for the broker Connection object. If supplied,
-may map to a key in 'kombu.connection.failover_strategies', or be a reference
-to any method that yields a single item from a supplied list.
-
-Example::
-
-    # Random failover strategy
-    def random_failover_strategy(servers):
-        it = list(it)  # don't modify callers list
-        shuffle = random.shuffle
-        for _ in repeat(None):
-            shuffle(it)
-            yield it[0]
-
-    BROKER_FAILOVER_STRATEGY=random_failover_strategy
-
 
 BROKER_TRANSPORT
 ~~~~~~~~~~~~~~~~
@@ -1272,24 +1259,6 @@ to have different import categories.
 
 The modules in this setting are imported after the modules in
 :setting:`CELERY_IMPORTS`.
-
-.. setting:: CELERYD_FORCE_EXECV
-
-CELERYD_FORCE_EXECV
-~~~~~~~~~~~~~~~~~~~
-
-On Unix the prefork pool will fork, so that child processes
-start with the same memory as the parent process.
-
-This can cause problems as there is a known deadlock condition
-with pthread locking primitives when `fork()` is combined with threads.
-
-You should enable this setting if you are experiencing hangs (deadlocks),
-especially in combination with time limits or having a max tasks per child limit.
-
-This option will be enabled by default in a later version.
-
-This is not a problem on Windows, as it does not have `fork()`.
 
 .. setting:: CELERYD_WORKER_LOST_WAIT
 

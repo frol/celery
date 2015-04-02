@@ -119,7 +119,7 @@ class test_ControlPanel(AppCase):
     def setup(self):
         self.panel = self.create_panel(consumer=Consumer(self.app))
 
-        @self.app.task(rate_limit=200, shared=False)
+        @self.app.task(name='c.unittest.mytask', rate_limit=200, shared=False)
         def mytask():
             pass
         self.mytask = mytask
@@ -139,6 +139,9 @@ class test_ControlPanel(AppCase):
         panel = self.create_panel(consumer=consumer)
         evd = consumer.event_dispatcher
         evd.groups = set()
+        panel.handle('enable_events')
+        self.assertFalse(evd.groups)
+        evd.groups = set(['worker'])
         panel.handle('enable_events')
         self.assertIn('task', evd.groups)
         evd.groups = set(['task'])

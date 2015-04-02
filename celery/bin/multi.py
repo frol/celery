@@ -123,6 +123,7 @@ SIGMAP = dict((getattr(signal, name), name) for name in SIGNAMES)
 USAGE = """\
 usage: {prog_name} start <node1 node2 nodeN|range> [worker options]
        {prog_name} stop <n1 n2 nN|range> [-SIG (default: -TERM)]
+       {prog_name} stopwait <n1 n2 nN|range> [-SIG (default: -TERM)]
        {prog_name} restart <n1 n2 nN|range> [-SIG] [worker options]
        {prog_name} kill <n1 n2 nN|range>
 
@@ -165,8 +166,10 @@ class MultiTool(object):
     retcode = 0  # Final exit code.
 
     def __init__(self, env=None, fh=None, quiet=False, verbose=False,
-                 no_color=False, nosplash=False):
-        self.fh = fh or sys.stderr
+                 no_color=False, nosplash=False, stdout=None, stderr=None):
+        """fh is an old alias to stdout."""
+        self.stdout = self.fh = stdout or fh or sys.stdout
+        self.stderr = stderr or sys.stderr
         self.env = env
         self.nosplash = nosplash
         self.quiet = quiet
@@ -211,8 +214,11 @@ class MultiTool(object):
 
         return self.retcode
 
-    def say(self, m, newline=True):
-        print(m, file=self.fh, end='\n' if newline else '')
+    def say(self, m, newline=True, file=None):
+        print(m, file=file or self.stdout, end='\n' if newline else '')
+
+    def carp(self, m, newline=True, file=None):
+        return self.say(m, newline, file or self.stderr)
 
     def names(self, argv, cmd):
         p = NamespacedOptionParser(argv)
@@ -422,7 +428,7 @@ class MultiTool(object):
 
     def error(self, msg=None):
         if msg:
-            self.say(msg)
+            self.carp(msg)
         self.usage()
         self.retcode = 1
         return 1

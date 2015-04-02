@@ -569,6 +569,7 @@ class Task(object):
             'chord': request.chord,
             'soft_time_limit': limit_soft,
             'time_limit': limit_hard,
+            'reply_to': request.reply_to,
         }
         options.update(
             {'queue': queue} if queue else (request.delivery_info or {})
@@ -658,20 +659,23 @@ class Task(object):
                 # first try to reraise the original exception
                 maybe_reraise()
                 # or if not in an except block then raise the custom exc.
-                raise exc()
+                raise exc
             raise self.MaxRetriesExceededError(
                 "Can't retry {0}[{1}] args:{2} kwargs:{3}".format(
                     self.name, request.id, S.args, S.kwargs))
 
-        # If task was executed eagerly using apply(),
-        # then the retry must also be executed eagerly.
-        try:
-            S.apply().get() if is_eager else S.apply_async()
-        except Exception as exc:
-            if is_eager:
-                raise
-            raise Reject(exc, requeue=True)
         ret = Retry(exc=exc, when=eta or countdown)
+
+        if is_eager:
+            # if task was executed eagerly using apply(),
+            # then the retry must also be executed eagerly.
+            S.apply().get()
+            return ret
+
+        try:
+            S.apply_async()
+        except Exception as exc:
+            raise Reject(exc, requeue=False)
         if throw:
             raise ret
         return ret

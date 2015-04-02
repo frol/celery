@@ -45,7 +45,7 @@ Basics
 ======
 
 You can easily create a task from any callable by using
-the :meth:`~@Celery.task` decorator:
+the :meth:`~@task` decorator:
 
 .. code-block:: python
 
@@ -327,8 +327,34 @@ for which documentation can be found in the :mod:`logging`
 module.
 
 You can also use :func:`print`, as anything written to standard
-out/-err will be redirected to logging system (you can disable this,
+out/-err will be redirected to the logging system (you can disable this,
 see :setting:`CELERY_REDIRECT_STDOUTS`).
+
+.. note::
+
+    The worker will not update the redirection if you create a logger instance
+    somewhere in your task or task module.
+
+    If you want to redirect ``sys.stdout`` and ``sys.stderr`` to a custom
+    logger you have to enable this manually, for example:
+
+    .. code-block:: python
+
+        import sys
+
+        logger = get_task_logger(__name__)
+
+        @app.task(bind=True)
+        def add(self, x, y):
+            old_outs = sys.stdout, sys.stderr
+            rlevel = self.app.conf.CELERY_REDIRECT_STDOUTS_LEVEL
+            try:
+                self.app.log.redirect_stdouts_to_logger(logger, rlevel)
+                print('Adding {0} + {1}'.format(x, y))
+                return x + y
+            finally:
+                sys.stdout, sys.stderr = old_outs
+
 
 .. _task-retry:
 
@@ -497,6 +523,16 @@ General
 
         Logged with severity ``ERROR``, with traceback included.
 
+.. attribute:: Task.trail
+
+    By default the task will keep track of subtasks called
+    (``task.request.children``), and this will be stored with the final result
+    in the result backend, available to the client via
+    ``AsyncResult.children``.
+
+    This list of task can grow quite big for tasks starting many subtasks,
+    and you can set this attribute to False to disable it.
+
 .. attribute:: Task.default_retry_delay
 
     Default time in seconds before a retry of the task
@@ -514,10 +550,19 @@ General
     If it is an integer or float, it is interpreted as "tasks per second".
 
     The rate limits can be specified in seconds, minutes or hours
-    by appending `"/s"`, `"/m"` or `"/h"` to the value.
-    Example: `"100/m"` (hundred tasks a minute).  Default is the
-    :setting:`CELERY_DEFAULT_RATE_LIMIT` setting, which if not specified means
-    rate limiting for tasks is disabled by default.
+    by appending `"/s"`, `"/m"` or `"/h"` to the value.  Tasks will be evenly
+    distributed over the specified time frame.
+
+    Example: `"100/m"` (hundred tasks a minute). This will enforce a minimum
+    delay of 600ms between starting two tasks on the same worker instance.
+    
+    Default is the :setting:`CELERY_DEFAULT_RATE_LIMIT` setting,
+    which if not specified means rate limiting for tasks is disabled by default.
+
+    Note that this is a *per worker instance* rate limit, and not a global
+    rate limit. To enforce a global rate limit (e.g. for an API with a
+    maximum number of  requests per second), you must restrict to a given
+    queue.
 
 .. attribute:: Task.time_limit
 
@@ -793,8 +838,9 @@ Use :meth:`~@Task.update_state` to update a task's state::
     @app.task(bind=True)
     def upload_files(self, filenames):
         for i, file in enumerate(filenames):
-            self.update_state(state='PROGRESS',
-                meta={'current': i, 'total': len(filenames)})
+            if not self.request.called_directly:
+                self.update_state(state='PROGRESS',
+                    meta={'current': i, 'total': len(filenames)})
 
 
 Here I created the state `"PROGRESS"`, which tells any application
@@ -902,7 +948,8 @@ Example that stores results manually:
     @app.task(bind=True)
     def get_tweets(self, user):
         timeline = twitter.get_timeline(user)
-        self.update_state(state=states.SUCCESS, meta=timeline)
+        if not self.request.called_directly:
+            self.update_state(state=states.SUCCESS, meta=timeline)
         raise Ignore()
 
 .. _task-semipred-reject:
@@ -1162,8 +1209,8 @@ yourself:
 
 .. code-block:: python
 
-    >>> from celery import current_app
-    >>> current_app.tasks
+    >>> from proj.celery import app
+    >>> app.tasks
     {'celery.chord_unlock':
         <@task: celery.chord_unlock>,
      'celery.backend_cleanup':
